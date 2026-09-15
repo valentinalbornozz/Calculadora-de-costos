@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de mesas VIP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@450;550;650;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0C0C0E;
+    --surface-1: rgba(255,255,255,0.035);
+    --surface-2: rgba(255,255,255,0.06);
+    --border: rgba(255,255,255,0.10);
+    --border-soft: rgba(255,255,255,0.06);
+    --gold: #D4AF37;
+    --gold-soft: #F0D890;
+    --gold-glow: rgba(212,175,55,0.28);
+    --text: #F5F3EF;
+    --text-dim: #9C9690;
+    --text-faint: #635D58;
+    --green: #7FD8A3;
+    --danger: #F0776A;
+    --ease: cubic-bezier(.16,1,.3,1);
+    --r-sm: 8px;
+    --r-md: 14px;
+    --r-lg: 20px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; animation: none !important; }
+  }
+
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap{
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 64px 24px 100px;
+  }
+
+  header{
+    margin-bottom: 40px;
+    max-width: 640px;
+  }
+  header h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 3.6vw, 2.7rem);
+    margin: 0 0 12px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  header p{
+    color: var(--text-dim);
+    font-size: 1rem;
+    margin: 0;
+    max-width: 56ch;
+  }
+
+  /* --- selector de mesa: pill segmentado --- */
+  .size-tabs{
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 34px;
+    padding-bottom: 2px;
+  }
+  .size-tabs-track{
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--surface-1);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    padding: 5px;
+    min-width: max-content;
+  }
+  .size-indicator{
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    height: calc(100% - 10px);
+    width: 0;
+    background: var(--gold);
+    border-radius: 999px;
+    transition: transform .4s var(--ease), width .4s var(--ease);
+    z-index: 0;
+  }
+  .size-pill{
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    font-size: 0.86rem;
+    transition: color .25s ease;
+  }
+  .size-pill:hover{ color: var(--text); }
+  .size-pill.active{ color: #17130A; }
+  .size-pill .remove{
+    display: inline-flex;
+    opacity: .55;
+    transition: opacity .2s ease;
+  }
+  .size-pill:hover .remove, .size-pill.active .remove{ opacity: .8; }
+
+  .size-add-btn{
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    border-radius: 999px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-faint);
+    cursor: pointer;
+    margin-left: 4px;
+    transition: border-color .2s ease, color .2s ease;
+  }
+  .size-add-btn:hover{ border-color: var(--gold); color: var(--gold-soft); }
+
+  .size-inline-input{
+    position: relative;
+    z-index: 1;
+    width: 64px;
+    background: var(--surface-2);
+    border: 1px solid var(--gold);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.86rem;
+    text-align: center;
+    margin-left: 4px;
+  }
+  .size-inline-input:focus{ outline: none; }
+
+  /* --- layout principal --- */
+  .layout{
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 28px;
+    align-items: start;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity .28s var(--ease), transform .28s var(--ease);
+  }
+  .layout.switching{ opacity: 0; transform: translateY(6px); }
+
+  .content{ display:flex; flex-direction:column; gap: 22px; }
+  .summary{ position: sticky; top: 24px; }
+
+  @keyframes fadeInUp{ from{ opacity:0; transform: translateY(12px); } to{ opacity:1; transform:none; } }
+  .content .block, .summary .ticket{
+    animation: fadeInUp .55s var(--ease) both;
+  }
+  .content .block:nth-of-type(1){ animation-delay: .04s; }
+  .content .block:nth-of-type(2){ animation-delay: .1s; }
+  .summary .ticket{ animation-delay: .16s; }
+
+  .block{
+    background: var(--surface-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-md);
+    padding: 24px 26px;
+  }
+  .block h2{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    margin: 0 0 4px;
+    color: var(--text);
+  }
+  .block .hint{
+    color: var(--text-faint);
+    font-size: 0.83rem;
+    margin: 0 0 18px;
+  }
+
+  /* --- inputs --- */
+  input[type=text], input[type=number]{
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--r-sm);
+    padding: 9px 11px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.9rem;
+    transition: border-color .2s ease;
+  }
+  input[type=text]:focus, input[type=number]:focus{
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,175,55,0.12);
+  }
+  input[type=number]{ text-align: right; }
+  input.invalid{ border-color: var(--danger) !important; animation: shake .32s var(--ease); }
+  @keyframes shake{ 20%{transform:translateX(-4px);} 60%{transform:translateX(3px);} 100%{transform:translateX(0);} }
+
+  input.inline{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    border-radius: 0;
+    padding: 4px 2px;
+    box-shadow: none !important;
+  }
+  input.inline:focus{ border-bottom-color: var(--gold); }
+  input.inline[type=text]{ text-align:left; }
+
+  button.ghost{
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: var(--r-sm);
+    padding: 9px 15px;
+    cursor: pointer;
+    font-family:'Manrope',sans-serif;
+    font-size: 0.85rem;
+    transition: border-color .2s ease, color .2s ease, transform .12s ease;
+  }
+  button.ghost:hover{ border-color: var(--gold); color: var(--gold-soft); }
+  button.ghost:active{ transform: scale(0.97); }
+
+  button.solid{
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--gold);
+    border: none;
+    color: #1B1710;
+    font-weight: 700;
+    border-radius: var(--r-sm);
+    padding: 10px 18px;
+    cursor: pointer;
+    font-family:'Manrope',sans-serif;
+    font-size: 0.87rem;
+    transition: background .2s ease, transform .12s ease;
+  }
+  button.solid:hover{ background: var(--gold-soft); }
+  button.solid:active{ transform: scale(0.97); }
+
+  .icon-btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width: 26px; height: 26px;
+    border: none; background: none;
+    color: var(--text-faint);
+    border-radius: 7px;
+    cursor: pointer;
+    transition: color .2s ease, background .2s ease;
+  }
+  .icon-btn:hover{ color: var(--danger); background: rgba(240,119,106,0.1); }
+
+  /* --- formulario de carga --- */
+  .entry-form{
+    display:grid;
+    grid-template-columns: 1fr 130px 90px auto;
+    gap: 12px;
+    align-items: end;
+  }
+  .entry-form .field label{
+    display:block;
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-bottom: 5px;
+  }
+  .entry-form input{ width: 100%; }
+
+  .drink-list{ margin-top: 20px; }
+  .drink-head{
+    display:grid;
+    grid-template-columns: 1fr 90px 60px 90px 30px;
+    gap: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .drink-head span{ font-size: 0.7rem; color: var(--text-faint); }
+
+  .drink-row{
+    display:grid;
+    grid-template-columns: 1fr 90px 60px 90px 30px;
+    gap: 12px;
+    align-items:center;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border-soft);
+    opacity: 1;
+    transform: none;
+    transition: opacity .28s var(--ease), transform .28s var(--ease);
+  }
+  .drink-row.row-enter{ opacity: 0; transform: translateY(-6px); }
+  .drink-row.row-exit{ opacity: 0; transform: translateX(10px); }
+
+  .subtotal-cell{
+    text-align:right;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-dim);
+    font-size: 0.88rem;
+  }
+
+  .empty-drinks{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    padding: 22px 4px;
+    color: var(--text-faint);
+    font-size: 0.85rem;
+  }
+  .empty-drinks svg{ flex-shrink:0; opacity:.5; }
+
+  .duplicate-row{
+    display:flex; align-items:center; gap:8px;
+    font-size: 0.83rem;
+    color: var(--text-faint);
+    margin-top: 16px;
+  }
+  select{
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--r-sm);
+    padding: 7px 9px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.85rem;
+  }
+
+  .row-2{ display:grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .field{ display:flex; flex-direction:column; gap: 6px; }
+  .field label{ font-size: 0.82rem; color: var(--text-dim); }
+  .input-with-prefix{ display:flex; align-items:center; gap:8px; }
+  .input-with-prefix span{ color: var(--text-faint); font-size: 0.85rem; }
+
+  /* --- switch segmentado de margen --- */
+  .margen-switch{
+    position: relative;
+    display: flex;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 3px;
+  }
+  .margen-switch .knob{
+    position: absolute;
+    top: 3px; left: 3px;
+    width: calc(50% - 3px);
+    height: calc(100% - 6px);
+    background: var(--gold);
+    border-radius: 6px;
+    transition: transform .3s var(--ease);
+  }
+  .margen-switch.fijo .knob{ transform: translateX(100%); }
+  .margen-switch button{
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 8px 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: 'Manrope', sans-serif;
+    transition: color .25s ease;
+  }
+  .margen-switch button.active{ color: #17130A; }
+
+  /* --- ticket / resumen --- */
+  .ticket{
+    background: var(--surface-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-lg);
+    padding: 26px 26px 20px;
+  }
+  .ticket-hero{
+    position: relative;
+    padding-bottom: 18px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border-soft);
+    overflow: hidden;
+  }
+  .hero-glow{
+    position: absolute;
+    top: -50px; right: -30px;
+    width: 160px; height: 160px;
+    background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+    filter: blur(4px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .hero-label{
+    position: relative;
+    z-index: 1;
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .hero-value{
+    position: relative;
+    z-index: 1;
+    display: block;
+    font-family: 'Fraunces', serif;
+    font-weight: 650;
+    font-size: 2.5rem;
+    line-height: 1.1;
+    color: var(--gold-soft);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .hero-caption{
+    position: relative;
+    z-index: 1;
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    margin-top: 6px;
+  }
+
+  .ticket .line{
+    display:flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    padding: 7px 0;
+    color: var(--text-dim);
+  }
+  .ticket .line b{
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .ticket .rule{ border-top: 1px solid var(--border-soft); margin: 8px 0; }
+  .ticket .line.total{ font-size: 0.98rem; padding-top: 10px; }
+  .ticket .line.total b{ color: var(--gold-soft); font-size: 1.05rem; }
+
+  /* --- comparativa --- */
+  .comparativa{ margin-top: 56px; }
+  .comparativa h2{
+    font-family:'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.3rem;
+    margin: 0 0 4px;
+  }
+  .comparativa p.hint{ color: var(--text-faint); font-size: 0.86rem; margin: 0 0 18px; }
+  .table-card{
+    background: var(--surface-1);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--r-md);
+    padding: 6px;
+  }
+  .table-scroll{
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table.compare{ width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 640px; }
+  table.compare th{
+    text-align: right; font-weight: 500; color: var(--text-faint);
+    font-size: 0.74rem; padding: 12px 16px; border-bottom: 1px solid var(--border-soft);
+  }
+  table.compare th:first-child, table.compare td:first-child{ text-align:left; }
+  table.compare td{
+    text-align: right; padding: 13px 16px; border-bottom: 1px solid var(--border-soft);
+    font-variant-numeric: tabular-nums; color: var(--text-dim);
+    transition: background .2s ease;
+  }
+  table.compare tr:last-child td{ border-bottom: none; }
+  table.compare tr.active td{ color: var(--text); background: rgba(212,175,55,0.05); }
+  table.compare td.ganancia{ color: var(--green); }
+  table.compare td.personas-cell{ color: var(--gold-soft); font-weight:600; }
+
+  /* --- tablet --- */
+  @media (max-width: 900px){
+    .wrap{ padding: 48px 20px 80px; }
+    .layout{ grid-template-columns: 1fr; }
+    .summary{ position: static; }
+  }
+
+  /* --- mobile --- */
+  @media (max-width: 620px){
+    .wrap{ padding: 36px 16px 64px; }
+    header{ margin-bottom: 28px; }
+    header p{ font-size: 0.94rem; }
+
+    .block{ padding: 20px 18px; }
+    .ticket{ padding: 22px 18px 16px; }
+    .hero-value{ font-size: 2.05rem; }
+
+    .entry-form{ grid-template-columns: 1fr 1fr; }
+    .entry-form .field:first-child{ grid-column: 1 / -1; }
+    .entry-form button{ grid-column: 1 / -1; justify-content:center; padding: 12px 18px; }
+
+    .drink-head{ display: none; }
+    .drink-row{
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "name name"
+        "costo cantidad"
+        "subtotal del";
+      row-gap: 6px;
+      padding: 14px 0;
+    }
+    .drink-row input.inline[type=text]{ grid-area: name; }
+    .drink-row input.inline[type=number]:nth-of-type(2){ grid-area: costo; text-align:left; }
+    .drink-row input.inline[type=number]:nth-of-type(3){ grid-area: cantidad; text-align:right; }
+    .subtotal-cell{ grid-area: subtotal; text-align:left; color: var(--text-faint); font-size: 0.8rem; }
+    .icon-btn{ grid-area: del; justify-self: end; }
+
+    .row-2{ grid-template-columns: 1fr; gap: 16px; }
+    .margen-switch{ max-width: 220px; }
+
+    .duplicate-row{ flex-wrap: wrap; }
+    select{ flex: 1; min-width: 0; }
+
+    .comparativa{ margin-top: 40px; }
+
+    input[type=text], input[type=number], select{ font-size: 16px; }
+  }
+
+  @media (pointer: coarse){
+    .icon-btn{ width: 32px; height: 32px; }
+    .size-add-btn{ width: 40px; height: 40px; }
+    button.solid, button.ghost{ padding-top: 11px; padding-bottom: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <h1>Cuánto sale cada mesa</h1>
+    <p>Cargá las bebidas y la entrada para cada tamaño de mesa, definí cuánto querés ganar, y te calculamos el precio sugerido y la ganancia total.</p>
+  </header>
+
+  <div class="size-tabs">
+    <div class="size-tabs-track" id="sizeTabsTrack"></div>
+  </div>
+
+  <main class="layout" id="layout">
+    <section class="content">
+
+      <div class="block">
+        <h2>Bebidas de la mesa</h2>
+        <p class="hint">Indicá el nombre y lo que a vos te cuesta cada botella o trago, y agregala a la lista.</p>
+
+        <div class="entry-form">
+          <div class="field">
+            <label>Bebida</label>
+            <input type="text" id="formNombre" placeholder="Ej: Fernet, Champagne..." onkeydown="if(event.key==='Enter') addDrinkFromForm()">
+          </div>
+          <div class="field">
+            <label>Costo unitario</label>
+            <input type="number" id="formCosto" min="0" placeholder="0" onkeydown="if(event.key==='Enter') addDrinkFromForm()">
+          </div>
+          <div class="field">
+            <label>Cantidad</label>
+            <input type="number" id="formCantidad" min="1" value="1" onkeydown="if(event.key==='Enter') addDrinkFromForm()">
+          </div>
+          <button class="solid" onclick="addDrinkFromForm()">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Agregar
+          </button>
+        </div>
+
+        <div class="drink-list">
+          <div class="drink-head">
+            <span>Bebida</span><span>Costo unit.</span><span>Cant.</span><span>Subtotal</span><span></span>
+          </div>
+          <div id="drinkRows"></div>
+        </div>
+
+        <div class="duplicate-row">
+          <span>Copiar bebidas de</span>
+          <select id="duplicateSource"></select>
+          <button class="ghost" onclick="duplicateFromSelected()">Copiar</button>
+        </div>
+      </div>
+
+      <div class="block">
+        <h2>Entrada y ganancia</h2>
+        <p class="hint">La entrada se suma como ingreso extra por persona, además de la venta de la mesa.</p>
+
+        <div class="row-2">
+          <div class="field">
+            <label>Entrada por persona</label>
+            <div class="input-with-prefix">
+              <span>$</span>
+              <input type="number" id="entradaInput" min="0" oninput="updateEntrada(this.value)">
+            </div>
+          </div>
+          <div class="field">
+            <label>Margen que querés ganar</label>
+            <div class="margen-switch" id="margenSwitch">
+              <div class="knob"></div>
+              <button id="btnPct" onclick="setMargenTipo('porcentaje')">%</button>
+              <button id="btnFijo" onclick="setMargenTipo('monto')">$ fijo</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row-2" style="margin-top:16px;">
+          <div class="field">
+            <label id="margenLabel">Porcentaje sobre el costo</label>
+            <input type="number" id="margenInput" min="0" oninput="updateMargen(this.value)">
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <aside class="summary">
+      <div class="ticket" id="ticket">
+        <div class="ticket-hero">
+          <div class="hero-glow"></div>
+          <span class="hero-label" id="ticketTitle">Mesa de 6 personas</span>
+          <span class="hero-value" id="val-gananciaTotal">$0</span>
+          <span class="hero-caption">Ganancia total estimada</span>
+        </div>
+        <div class="line"><span>Costo bebidas</span><b id="val-costo">$0</b></div>
+        <div class="line"><span>Ganancia sobre bebidas</span><b id="val-gananciaBebidas">$0</b></div>
+        <div class="line"><span>Precio sugerido de la mesa</span><b id="val-precioSugerido">$0</b></div>
+        <div class="line"><span id="entradasLabel">Entradas</span><b id="val-entradas">$0</b></div>
+        <div class="rule"></div>
+        <div class="line total"><span>Ingreso total</span><b id="val-ingresoTotal">$0</b></div>
+        <div class="line"><span>Precio por persona</span><b id="val-precioPersona">$0</b></div>
+        <div class="line"><span>Margen sobre el ingreso</span><b id="val-margenPct">0%</b></div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="comparativa">
+    <h2>Comparativa de mesas</h2>
+    <p class="hint">Solo se muestran las mesas que ya tienen bebidas o entrada cargada.</p>
+    <div class="table-card">
+      <div class="table-scroll">
+        <table class="compare" id="compareTable">
+          <thead>
+            <tr>
+              <th>Personas</th><th>Costo bebidas</th><th>Entradas</th><th>Precio mesa</th>
+              <th>Ingreso total</th><th>Ganancia total</th><th>Ganancia / persona</th>
+            </tr>
+          </thead>
+          <tbody id="compareBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const ICONS = {
+    trash: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`,
+    x: `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
+    plus: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
+    glass: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l-1.5 14a3 3 0 0 1-3 2.6h-3a3 3 0 0 1-3-2.6L6 3Z"/><path d="M8 8h8"/><path d="M12 19.6V22"/></svg>`
+  };
+
+  let drinkIdCounter = 1;
+  const state = {
+    activeSize: 6,
+    sizes: [6,8,10,15,20,25],
+    tables: {},
+    addingSize: false
+  };
+
+  function getTable(size){
+    if(!state.tables[size]){
+      state.tables[size] = { drinks: [], entrada: 0, margenTipo: 'porcentaje', margenValor: 40 };
+    }
+    return state.tables[size];
+  }
+
+  function fmt(n){
+    n = Math.round(n || 0);
+    return '$' + n.toLocaleString('es-AR');
+  }
+
+  function escapeAttr(s){ return (s || '').replace(/"/g, '&quot;'); }
+
+  function computeTable(size){
+    const t = getTable(size);
+    const costoBebidas = t.drinks.reduce((s,d)=> s + (Number(d.costo)||0)*(Number(d.cantidad)||0), 0);
+    const ingresoEntradas = (Number(t.entrada)||0) * size;
+    let precioSugeridoBebidas;
+    if(t.margenTipo === 'porcentaje'){
+      precioSugeridoBebidas = costoBebidas * (1 + (Number(t.margenValor)||0)/100);
+    } else {
+      precioSugeridoBebidas = costoBebidas + (Number(t.margenValor)||0);
+    }
+    const gananciaBebidas = precioSugeridoBebidas - costoBebidas;
+    const ingresoTotal = precioSugeridoBebidas + ingresoEntradas;
+    const gananciaTotal = gananciaBebidas + ingresoEntradas;
+    const precioPorPersona = size > 0 ? ingresoTotal / size : 0;
+    const margenPct = ingresoTotal > 0 ? (gananciaTotal/ingresoTotal)*100 : 0;
+    return { costoBebidas, ingresoEntradas, precioSugeridoBebidas, gananciaBebidas, ingresoTotal, gananciaTotal, precioPorPersona, margenPct };
+  }
+
+  function animateValue(el, to, isPercent){
+    const from = Number(el.dataset.raw || 0);
+    el.dataset.raw = to;
+    if(Math.abs(to - from) < 0.5){ el.textContent = isPercent ? Math.round(to)+'%' : fmt(to); return; }
+    const duration = 420;
+    const start = performance.now();
+    function frame(now){
+      const p = Math.min((now-start)/duration, 1);
+      const eased = 1 - Math.pow(1-p, 3);
+      const val = from + (to-from)*eased;
+      el.textContent = isPercent ? Math.round(val)+'%' : fmt(val);
+      if(p < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function renderSizeSelector(){
+    const track = document.getElementById('sizeTabsTrack');
+    track.innerHTML = '<div class="size-indicator" id="sizeIndicator"></div>';
+
+    state.sizes.forEach(size => {
+      const active = size === state.activeSize;
+      const isPreset = [6,8,10,15,20,25].includes(size);
+      const btn = document.createElement('button');
+      btn.className = 'size-pill' + (active ? ' active' : '');
+      btn.onclick = () => switchSize(size);
+      btn.innerHTML = `
+        <span>${size} personas</span>
+        ${!isPreset ? `<span class="remove" onclick="removeCustomSize(event, ${size})">${ICONS.x}</span>` : ''}
+      `;
+      track.appendChild(btn);
+    });
+
+    if(state.addingSize){
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '1';
+      input.id = 'inlineSizeInput';
+      input.className = 'size-inline-input';
+      input.placeholder = 'Nº';
+      input.onkeydown = (e) => {
+        if(e.key === 'Enter') confirmAddSize(e.target);
+        if(e.key === 'Escape'){ state.addingSize = false; renderSizeSelector(); }
+      };
+      input.onblur = () => setTimeout(() => { if(state.addingSize) confirmAddSize(input); }, 150);
+      track.appendChild(input);
+      requestAnimationFrame(() => input.focus());
+    } else {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'size-add-btn';
+      addBtn.title = 'Agregar otro tamaño';
+      addBtn.innerHTML = ICONS.plus;
+      addBtn.onclick = () => { state.addingSize = true; renderSizeSelector(); };
+      track.appendChild(addBtn);
+    }
+
+    requestAnimationFrame(() => {
+      const activeBtn = track.querySelector('.size-pill.active');
+      const indicator = document.getElementById('sizeIndicator');
+      if(activeBtn && indicator){
+        indicator.style.transform = `translateX(${activeBtn.offsetLeft - 5}px)`;
+        indicator.style.width = activeBtn.offsetWidth + 'px';
+      }
+    });
+  }
+
+  function confirmAddSize(inputEl){
+    const n = Number(inputEl.value);
+    state.addingSize = false;
+    if(n && n > 0 && !state.sizes.includes(n)){
+      state.sizes.push(n);
+      state.sizes.sort((a,b)=>a-b);
+      switchSize(n);
+    } else {
+      renderSizeSelector();
+    }
+  }
+
+  function switchSize(size){
+    if(size === state.activeSize){ state.addingSize = false; renderSizeSelector(); return; }
+    const layout = document.getElementById('layout');
+    layout.classList.add('switching');
+    state.activeSize = size;
+    state.addingSize = false;
+    renderSizeSelector();
+    setTimeout(() => {
+      renderAll();
+      layout.classList.remove('switching');
+    }, 150);
+  }
+
+  function renderDrinks(){
+    const t = getTable(state.activeSize);
+    const container = document.getElementById('drinkRows');
+    container.innerHTML = '';
+    if(t.drinks.length === 0){
+      container.innerHTML = `<div class="empty-drinks">${ICONS.glass} Todavía no agregaste bebidas para esta mesa.</div>`;
+      return;
+    }
+    t.drinks.forEach(d => {
+      const row = document.createElement('div');
+      row.className = 'drink-row' + (d.isNew ? ' row-enter' : '');
+      row.dataset.drinkId = d.id;
+      const subtotal = (Number(d.costo)||0) * (Number(d.cantidad)||0);
+      row.innerHTML = `
+        <input class="inline" type="text" value="${escapeAttr(d.nombre)}" oninput="updateDrink(${d.id}, 'nombre', this.value)">
+        <input class="inline" type="number" min="0" value="${d.costo}" oninput="updateDrink(${d.id}, 'costo', this.value)">
+        <input class="inline" type="number" min="0" value="${d.cantidad}" oninput="updateDrink(${d.id}, 'cantidad', this.value)">
+        <span class="subtotal-cell">${fmt(subtotal)}</span>
+        <button class="icon-btn" onclick="removeDrink(${d.id})">${ICONS.trash}</button>
+      `;
+      container.appendChild(row);
+      if(d.isNew){
+        requestAnimationFrame(() => requestAnimationFrame(() => row.classList.remove('row-enter')));
+        d.isNew = false;
+      }
+    });
+  }
+
+  function renderConfig(){
+    const t = getTable(state.activeSize);
+    document.getElementById('entradaInput').value = t.entrada;
+    document.getElementById('margenInput').value = t.margenValor;
+    document.getElementById('btnPct').classList.toggle('active', t.margenTipo === 'porcentaje');
+    document.getElementById('btnFijo').classList.toggle('active', t.margenTipo === 'monto');
+    document.getElementById('margenSwitch').classList.toggle('fijo', t.margenTipo === 'monto');
+    document.getElementById('margenLabel').textContent = t.margenTipo === 'porcentaje'
+      ? 'Porcentaje sobre el costo' : 'Monto fijo de ganancia';
+
+    const source = document.getElementById('duplicateSource');
+    source.innerHTML = '';
+    state.sizes.filter(s => s !== state.activeSize).forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s + ' personas';
+      source.appendChild(opt);
+    });
+  }
+
+  function renderTicket(){
+    const size = state.activeSize;
+    const r = computeTable(size);
+    document.getElementById('ticketTitle').textContent = `Mesa de ${size} personas`;
+    document.getElementById('entradasLabel').textContent = `Entradas (${size} × entrada)`;
+    animateValue(document.getElementById('val-gananciaTotal'), r.gananciaTotal);
+    animateValue(document.getElementById('val-costo'), r.costoBebidas);
+    animateValue(document.getElementById('val-gananciaBebidas'), r.gananciaBebidas);
+    animateValue(document.getElementById('val-precioSugerido'), r.precioSugeridoBebidas);
+    animateValue(document.getElementById('val-entradas'), r.ingresoEntradas);
+    animateValue(document.getElementById('val-ingresoTotal'), r.ingresoTotal);
+    animateValue(document.getElementById('val-precioPersona'), r.precioPorPersona);
+    animateValue(document.getElementById('val-margenPct'), r.margenPct, true);
+  }
+
+  function renderComparativa(){
+    const body = document.getElementById('compareBody');
+    body.innerHTML = '';
+    let any = false;
+    state.sizes.forEach(size => {
+      const t = state.tables[size];
+      const hasData = t && (t.drinks.length > 0 || t.entrada > 0);
+      if(!hasData) return;
+      any = true;
+      const r = computeTable(size);
+      const tr = document.createElement('tr');
+      if(size === state.activeSize) tr.className = 'active';
+      tr.innerHTML = `
+        <td class="personas-cell">${size}</td>
+        <td>${fmt(r.costoBebidas)}</td>
+        <td>${fmt(r.ingresoEntradas)}</td>
+        <td>${fmt(r.precioSugeridoBebidas)}</td>
+        <td>${fmt(r.ingresoTotal)}</td>
+        <td class="ganancia">${fmt(r.gananciaTotal)}</td>
+        <td class="ganancia">${fmt(r.gananciaTotal/size)}</td>
+      `;
+      body.appendChild(tr);
+    });
+    if(!any){
+      body.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-faint); padding:22px 0;">Todavía no cargaste bebidas ni entradas para ninguna mesa.</td></tr>`;
+    }
+  }
+
+  function renderAll(){
+    renderSizeSelector();
+    renderDrinks();
+    renderConfig();
+    renderTicket();
+    renderComparativa();
+  }
+
+  function flashInvalid(id){
+    const el = document.getElementById(id);
+    el.classList.add('invalid');
+    el.focus();
+    setTimeout(() => el.classList.remove('invalid'), 350);
+  }
+
+  function addDrinkFromForm(){
+    const nombreEl = document.getElementById('formNombre');
+    const costoEl = document.getElementById('formCosto');
+    const cantidadEl = document.getElementById('formCantidad');
+    const nombre = nombreEl.value.trim();
+    const costo = Number(costoEl.value);
+    const cantidad = Number(cantidadEl.value) || 1;
+
+    if(!nombre){ flashInvalid('formNombre'); return; }
+    if(!costo || costo <= 0){ flashInvalid('formCosto'); return; }
+
+    const t = getTable(state.activeSize);
+    t.drinks.push({ id: drinkIdCounter++, nombre, costo, cantidad, isNew: true });
+
+    nombreEl.value = '';
+    costoEl.value = '';
+    cantidadEl.value = '1';
+    nombreEl.focus();
+
+    renderDrinks();
+    renderTicket();
+    renderComparativa();
+  }
+
+  function updateDrink(id, field, value){
+    const t = getTable(state.activeSize);
+    const d = t.drinks.find(d => d.id === id);
+    if(!d) return;
+    d[field] = field === 'nombre' ? value : Number(value);
+    const row = document.querySelector(`[data-drink-id="${id}"]`);
+    if(row){
+      const subtotal = (Number(d.costo)||0) * (Number(d.cantidad)||0);
+      row.querySelector('.subtotal-cell').textContent = fmt(subtotal);
+    }
+    renderTicket();
+    renderComparativa();
+  }
+
+  function removeDrink(id){
+    const row = document.querySelector(`[data-drink-id="${id}"]`);
+    if(!row){ return; }
+    row.classList.add('row-exit');
+    row.addEventListener('transitionend', () => {
+      const t = getTable(state.activeSize);
+      t.drinks = t.drinks.filter(d => d.id !== id);
+      renderDrinks();
+      renderTicket();
+      renderComparativa();
+    }, { once: true });
+  }
+
+  function updateEntrada(value){
+    const t = getTable(state.activeSize);
+    t.entrada = Number(value) || 0;
+    renderTicket();
+    renderComparativa();
+  }
+
+  function updateMargen(value){
+    const t = getTable(state.activeSize);
+    t.margenValor = Number(value) || 0;
+    renderTicket();
+    renderComparativa();
+  }
+
+  function setMargenTipo(tipo){
+    const t = getTable(state.activeSize);
+    t.margenTipo = tipo;
+    if(tipo === 'porcentaje' && t.margenValor > 100) t.margenValor = 40;
+    renderConfig();
+    renderTicket();
+    renderComparativa();
+  }
+
+  function removeCustomSize(event, size){
+    event.stopPropagation();
+    state.sizes = state.sizes.filter(s => s !== size);
+    delete state.tables[size];
+    if(state.activeSize === size) state.activeSize = state.sizes[0];
+    renderAll();
+  }
+
+  function duplicateFromSelected(){
+    const source = Number(document.getElementById('duplicateSource').value);
+    if(!source) return;
+    const src = getTable(source);
+    const target = getTable(state.activeSize);
+    const ratio = state.activeSize / source;
+    target.drinks = src.drinks.map(d => ({
+      id: drinkIdCounter++,
+      nombre: d.nombre,
+      costo: d.costo,
+      cantidad: Math.max(1, Math.round(d.cantidad * ratio)),
+      isNew: true
+    }));
+    target.entrada = src.entrada;
+    target.margenTipo = src.margenTipo;
+    target.margenValor = src.margenValor;
+    renderAll();
+  }
+
+  renderAll();
+  window.addEventListener('resize', renderSizeSelector);
+</script>
+
+</body>
+</html>
