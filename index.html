@@ -202,7 +202,7 @@
   input[type=text], input[type=number]{
     background: var(--surface-2);
     border: 1px solid var(--border);
-    color: var(--text);
+    color: var(--text-dim);
     border-radius: var(--r-sm);
     padding: 9px 11px;
     font-family: 'Manrope', sans-serif;
@@ -401,10 +401,10 @@
   }
   .hero-glow{
     position: absolute;
-    top: -50px; right: -30px;
-    width: 160px; height: 160px;
-    background: radial-gradient(circle, var(--gold-glow), transparent 70%);
-    filter: blur(4px);
+    top: -70px; right: -50px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, var(--gold-glow) 0%, rgba(212,175,55,0) 70%);
+    filter: blur(28px);
     pointer-events: none;
     z-index: 0;
   }
@@ -737,10 +737,10 @@
     track.innerHTML = '<div class="size-indicator" id="sizeIndicator"></div>';
 
     state.sizes.forEach(size => {
-      const active = size === state.activeSize;
       const isPreset = [6,8,10,15,20,25].includes(size);
       const btn = document.createElement('button');
-      btn.className = 'size-pill' + (active ? ' active' : '');
+      btn.className = 'size-pill';
+      btn.dataset.size = size;
       btn.onclick = () => switchSize(size);
       btn.innerHTML = `
         <span>${size} personas</span>
@@ -772,9 +772,22 @@
       track.appendChild(addBtn);
     }
 
+    updateActiveTab();
+  }
+
+  // Solo mueve el indicador y marca la pestaña activa: nunca destruye ni recrea
+  // los botones, para no cortar la animación de deslizamiento a mitad de camino.
+  function updateActiveTab(){
+    const track = document.getElementById('sizeTabsTrack');
+    if(!track) return;
+    let activeBtn = null;
+    track.querySelectorAll('.size-pill').forEach(btn => {
+      const isActive = Number(btn.dataset.size) === state.activeSize;
+      btn.classList.toggle('active', isActive);
+      if(isActive) activeBtn = btn;
+    });
+    const indicator = document.getElementById('sizeIndicator');
     requestAnimationFrame(() => {
-      const activeBtn = track.querySelector('.size-pill.active');
-      const indicator = document.getElementById('sizeIndicator');
       if(activeBtn && indicator){
         indicator.style.transform = `translateX(${activeBtn.offsetLeft - 5}px)`;
         indicator.style.width = activeBtn.offsetWidth + 'px';
@@ -788,21 +801,33 @@
     if(n && n > 0 && !state.sizes.includes(n)){
       state.sizes.push(n);
       state.sizes.sort((a,b)=>a-b);
-      switchSize(n);
+      switchSize(n, true);
     } else {
       renderSizeSelector();
     }
   }
 
-  function switchSize(size){
-    if(size === state.activeSize){ state.addingSize = false; renderSizeSelector(); return; }
-    const layout = document.getElementById('layout');
-    layout.classList.add('switching');
+  function switchSize(size, forceRebuild){
+    if(size === state.activeSize && !forceRebuild){
+      if(state.addingSize){ state.addingSize = false; renderSizeSelector(); }
+      return;
+    }
     state.activeSize = size;
     state.addingSize = false;
-    renderSizeSelector();
+    if(forceRebuild){
+      // el tamaño es nuevo (recien agregado): hay que crear su pestaña
+      renderSizeSelector();
+    } else {
+      // ya existe la pestaña: solo deslizamos el indicador, sin recrear nada
+      updateActiveTab();
+    }
+    const layout = document.getElementById('layout');
+    layout.classList.add('switching');
     setTimeout(() => {
-      renderAll();
+      renderDrinks();
+      renderConfig();
+      renderTicket();
+      renderComparativa();
       layout.classList.remove('switching');
     }, 150);
   }
@@ -999,23 +1024,25 @@
     const source = Number(document.getElementById('duplicateSource').value);
     if(!source) return;
     const src = getTable(source);
+    if(src.drinks.length === 0) return;
     const target = getTable(state.activeSize);
     const ratio = state.activeSize / source;
-    target.drinks = src.drinks.map(d => ({
+    const copied = src.drinks.map(d => ({
       id: drinkIdCounter++,
       nombre: d.nombre,
       costo: d.costo,
       cantidad: Math.max(1, Math.round(d.cantidad * ratio)),
       isNew: true
     }));
-    target.entrada = src.entrada;
-    target.margenTipo = src.margenTipo;
-    target.margenValor = src.margenValor;
-    renderAll();
+    // se suman a las bebidas que ya tenía esta mesa, nunca las reemplaza
+    target.drinks = target.drinks.concat(copied);
+    renderDrinks();
+    renderTicket();
+    renderComparativa();
   }
 
   renderAll();
-  window.addEventListener('resize', renderSizeSelector);
+  window.addEventListener('resize', updateActiveTab);
 </script>
 
 </body>
